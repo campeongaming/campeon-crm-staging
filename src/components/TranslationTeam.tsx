@@ -173,13 +173,13 @@ export default function TranslationTeam() {
             setMessage('❌ Language code cannot be empty');
             return;
         }
-        if (selectedLanguages.includes(newLanguageCode.toLowerCase())) {
+        if (selectedLanguages.includes(newLanguageCode.trim())) {
             setMessage('❌ This language code already exists');
             return;
         }
 
         // Add custom language
-        const langCode = newLanguageCode.toLowerCase();
+        const langCode = newLanguageCode.trim();
         const newCustomLang: LanguageItem = { code: langCode, name: langCode, isCustom: true };
 
         // Save to backend
