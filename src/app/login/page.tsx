@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/lib/api-config';
+import { useAuth } from '@/lib/auth-context';
 
 const API_URL = API_ENDPOINTS.BASE_URL;
 
 export default function LoginPage() {
     const router = useRouter();
+    const { login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -37,18 +39,9 @@ export default function LoginPage() {
 
             if (response.data && response.data.access_token) {
                 console.log('Login successful, redirecting to /create');
-                // Store auth token and user info
-                localStorage.setItem('auth_token', response.data.access_token);
-                localStorage.setItem('auth_user', JSON.stringify(response.data.user));
-
-                // Dispatch storage event to trigger AuthContext update
-                window.dispatchEvent(new Event('storage'));
-
-                // Wait a tiny bit for context to update, then redirect
-                setTimeout(() => {
-                    console.log('Redirecting to /create');
-                    router.push('/create');
-                }, 100);
+                // Update auth context state directly — no race condition
+                login(response.data.access_token, response.data.user);
+                router.push('/create');
             } else {
                 console.log('No access token in response');
                 setError('Invalid response from server');

@@ -33,6 +33,7 @@ interface AuthContextType {
     isLoading: boolean;
     isLoggedIn: boolean;
     isAdmin: boolean;
+    login: (token: string, user: User) => void;
     logout: () => void;
 }
 
@@ -94,6 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => window.removeEventListener('storage', () => checkAuth());
     }, []);
 
+    const login = (newToken: string, newUser: User) => {
+        localStorage.setItem('auth_token', newToken);
+        localStorage.setItem('auth_user', JSON.stringify(newUser));
+        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        setToken(newToken);
+        setUser(newUser);
+    };
+
     const logout = () => {
         setUser(null);
         setToken(null);
@@ -108,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isLoggedIn: !!token && !!user,
         isAdmin: user?.role === 'admin',
+        login,
         logout,
     };
 
