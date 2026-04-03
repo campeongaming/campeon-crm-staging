@@ -162,32 +162,9 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.get("/auth/me", response_model=UserResponse)
-def get_current_user(token: str = None, db: Session = Depends(get_db)):
-    """Get current authenticated user"""
-
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-
-    payload = verify_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-    username = payload.get("username")
-    user = db.query(User).filter(User.username == username).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
-    return user
+def get_current_user(current_user: User = Depends(require_auth)):
+    """Get current authenticated user — validates the Bearer token server-side."""
+    return current_user
 
 
 @router.post("/auth/logout")

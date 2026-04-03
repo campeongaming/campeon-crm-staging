@@ -6,6 +6,21 @@ import { API_ENDPOINTS } from './api-config';
 
 const API_URL = API_ENDPOINTS.BASE_URL;
 
+/** Decode the JWT payload and check the `exp` claim without a crypto library. */
+function isTokenExpired(token: string): boolean {
+    try {
+        const base64Url = token.split('.')[1];
+        if (!base64Url) return true;
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64));
+        if (typeof payload.exp !== 'number') return true;
+        // exp is in seconds; add a 10-second clock-skew buffer
+        return Date.now() / 1000 > payload.exp - 10;
+    } catch {
+        return true;
+    }
+}
+
 interface User {
     id: string;
     username: string;
@@ -30,29 +45,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Check authentication on mount and when pathname changes
     useEffect(() => {
-        const checkAuth = () => {
+        const checkAuth = async () => {
             const storedToken = localStorage.getItem('auth_token');
             const storedUser = localStorage.getItem('auth_user');
 
-            console.log('Auth check from context:', { hasToken: !!storedToken, hasUser: !!storedUser });
+            const clearSession = () => {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('auth_user');
+                delete axios.defaults.headers.common['Authorization'];
+                setToken(null);
+                setUser(null);
+            };
 
             if (storedToken && storedUser) {
-                try {
-                    const parsedUser = JSON.parse(storedUser);
-                    setToken(storedToken);
-                    setUser(parsedUser);
+                // 1. Check JWT expiry client-side before any network call
+                if (isTokenExpired(storedToken)) {
+                    console.log('Token expired — clearing session');
+                    clearSession();
+                    setIsLoading(false);
+                    return;
+                }
 
-                    // Set auth header for future requests
+                try {
+                    // 2. Verify with the server (catches deactivated accounts too)
+                    const { data } = await axios.get(`${API_URL}/auth/me`, {
+                        headers: { Authorization: `Bearer ${storedToken}` },
+                    });
+                    setToken(storedToken);
+                    setUser(data);
                     axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-                    console.log('Auth restored from localStorage');
+                    console.log('Auth verified with server');
                 } catch (err) {
-                    console.log('Failed to parse stored user');
-                    // Clear invalid data
-                    localStorage.removeItem('auth_token');
-                    localStorage.removeItem('auth_user');
+                    console.log('Server rejected token — clearing session');
+                    clearSession();
                 }
             } else {
-                // Ensure state is cleared if no token
                 setToken(null);
                 setUser(null);
             }
@@ -63,8 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         checkAuth();
 
         // Also listen for storage changes (in case another tab updates it)
-        window.addEventListener('storage', checkAuth);
-        return () => window.removeEventListener('storage', checkAuth);
+        window.addEventListener('storage', () => checkAuth());
+        return () => window.removeEventListener('storage', () => checkAuth());
     }, []);
 
     const logout = () => {
