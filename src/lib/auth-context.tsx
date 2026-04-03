@@ -4,8 +4,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import { API_ENDPOINTS } from './api-config';
 
-const API_URL = API_ENDPOINTS.BASE_URL;
-
 /** Decode the JWT payload and check the `exp` claim without a crypto library. */
 function isTokenExpired(token: string): boolean {
     try {
@@ -44,41 +42,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Check authentication on mount and when pathname changes
+    // Check authentication on mount
     useEffect(() => {
-        const checkAuth = async () => {
+        const checkAuth = () => {
             const storedToken = localStorage.getItem('auth_token');
             const storedUser = localStorage.getItem('auth_user');
 
-            const clearSession = () => {
-                localStorage.removeItem('auth_token');
-                localStorage.removeItem('auth_user');
-                delete axios.defaults.headers.common['Authorization'];
-                setToken(null);
-                setUser(null);
-            };
-
             if (storedToken && storedUser) {
-                // 1. Check JWT expiry client-side before any network call
                 if (isTokenExpired(storedToken)) {
-                    console.log('Token expired — clearing session');
-                    clearSession();
-                    setIsLoading(false);
-                    return;
-                }
-
-                try {
-                    // 2. Verify with the server (catches deactivated accounts too)
-                    const { data } = await axios.get(`${API_URL}/auth/me`, {
-                        headers: { Authorization: `Bearer ${storedToken}` },
-                    });
-                    setToken(storedToken);
-                    setUser(data);
-                    axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-                    console.log('Auth verified with server');
-                } catch (err) {
-                    console.log('Server rejected token — clearing session');
-                    clearSession();
+                    // Token expired — clear session
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('auth_user');
+                    delete axios.defaults.headers.common['Authorization'];
+                    setToken(null);
+                    setUser(null);
+                } else {
+                    try {
+                        const parsedUser = JSON.parse(storedUser);
+                        setToken(storedToken);
+                        setUser(parsedUser);
+                        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+                    } catch {
+                        localStorage.removeItem('auth_token');
+                        localStorage.removeItem('auth_user');
+                        setToken(null);
+                        setUser(null);
+                    }
                 }
             } else {
                 setToken(null);
@@ -90,9 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         checkAuth();
 
-        // Also listen for storage changes (in case another tab updates it)
-        window.addEventListener('storage', () => checkAuth());
-        return () => window.removeEventListener('storage', () => checkAuth());
+        // Listen for storage changes from other tabs
+        window.addEventListener('storage', checkAuth);
+        return () => window.removeEventListener('storage', checkAuth);
     }, []);
 
     const login = (newToken: string, newUser: User) => {
@@ -110,6 +99,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('auth_user');
         delete axios.defaults.headers.common['Authorization'];
     };
+
+    // Global 401 interceptor — if any API call is rejected, clear session
+    useEffect(() => {
+        const interceptorId = axios.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (error?.response?.status === 401) {
+                    logout();
+                }
+                return Promise.reject(error);
+            }
+        );
+        return () => axios.interceptors.response.eject(interceptorId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const value: AuthContextType = {
         user,
