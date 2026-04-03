@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/lib/api-config';
@@ -10,7 +9,6 @@ import { useAuth } from '@/lib/auth-context';
 const API_URL = API_ENDPOINTS.BASE_URL;
 
 export default function LoginPage() {
-    const router = useRouter();
     const { login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -38,10 +36,8 @@ export default function LoginPage() {
             console.log('Login response:', response.data);
 
             if (response.data && response.data.access_token) {
-                console.log('Login successful, redirecting to /create');
-                // Update auth context state directly — no race condition
+                // Update context state — AuthGuard will redirect to /create once isLoggedIn=true
                 login(response.data.access_token, response.data.user);
-                router.push('/create');
             } else {
                 console.log('No access token in response');
                 setError('Invalid response from server');
