@@ -391,6 +391,7 @@ def delete_bonus_template(template_id: str, db: Session = Depends(get_db)):
 # Default built-in language codes (must match frontend LANGUAGES list)
 DEFAULT_LANGUAGE_CODES = {'*', 'en', 'de', 'fr', 'es', 'it', 'pt'}
 
+
 @router.post("/bonus-templates/{template_id}/translations", status_code=status.HTTP_201_CREATED)
 def add_translation(template_id: str, translation: BonusTranslationCreate, db: Session = Depends(get_db)):
     """Add a translation for a bonus template - updates if exists"""
