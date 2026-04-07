@@ -27,13 +27,13 @@ def create_custom_language(language: CustomLanguageSchema, db: Session = Depends
     """Create a new custom language"""
     # Check if language already exists
     existing = db.query(CustomLanguage).filter(
-        CustomLanguage.code == language.code.lower()).first()
+        CustomLanguage.code == language.code).first()
     if existing:
         raise HTTPException(
             status_code=400, detail="Language code already exists")
 
     new_language = CustomLanguage(
-        code=language.code.lower(), name=language.name)
+        code=language.code, name=language.name)
     db.add(new_language)
     db.commit()
     db.refresh(new_language)
@@ -45,7 +45,7 @@ def create_custom_language(language: CustomLanguageSchema, db: Session = Depends
 def delete_custom_language(code: str, db: Session = Depends(get_db)):
     """Delete a custom language"""
     language = db.query(CustomLanguage).filter(
-        CustomLanguage.code == code.lower()).first()
+        CustomLanguage.code == code).first()
     if not language:
         raise HTTPException(status_code=404, detail="Language not found")
 
