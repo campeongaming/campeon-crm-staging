@@ -10,7 +10,7 @@ import json as json_lib
 import os
 
 from database.database import get_db
-from database.models import BonusTemplate, BonusTranslation
+from database.models import BonusTemplate, BonusTranslation, CustomLanguage
 from api.schemas import BonusTemplateCreate, BonusTemplateResponse, BonusTranslationCreate, BonusTranslationResponse, BonusJSONOutput
 from services.json_generator import generate_bonus_json_with_currencies
 
@@ -388,6 +388,9 @@ def delete_bonus_template(template_id: str, db: Session = Depends(get_db)):
 
 # ============= BONUS TRANSLATIONS =============
 
+# Default built-in language codes (must match frontend LANGUAGES list)
+DEFAULT_LANGUAGE_CODES = {'*', 'en', 'de', 'fr', 'es', 'it', 'pt'}
+
 @router.post("/bonus-templates/{template_id}/translations", status_code=status.HTTP_201_CREATED)
 def add_translation(template_id: str, translation: BonusTranslationCreate, db: Session = Depends(get_db)):
     """Add a translation for a bonus template - updates if exists"""
@@ -400,6 +403,17 @@ def add_translation(template_id: str, translation: BonusTranslationCreate, db: S
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Template '{template_id}' not found"
         )
+
+    # Validate language code exists (default or custom)
+    if translation.language not in DEFAULT_LANGUAGE_CODES:
+        custom_lang = db.query(CustomLanguage).filter(
+            CustomLanguage.code == translation.language
+        ).first()
+        if not custom_lang:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Language code '{translation.language}' is not recognized. Add it as a custom language first."
+            )
 
     print(
         f"[DEBUG] Saving translation for {template_id} - Language: {translation.language}")
