@@ -173,6 +173,27 @@ def logout():
     return {"message": "Successfully logged out"}
 
 
+@router.post("/auth/service-token")
+def create_service_token(current_user: User = Depends(require_auth)):
+    """Generate a long-lived (1 year) service token for automation use (e.g. n8n). Admin only."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    token = create_access_token(
+        data={"sub": current_user.username},
+        expires_delta=timedelta(days=365)
+    )
+
+    return {
+        "service_token": token,
+        "expires_in": "365 days",
+        "note": "Store this token securely. Use as Bearer token in automation workflows."
+    }
+
+
 @router.post("/auth/admin/create-user", response_model=UserResponse)
 def admin_create_user(user: UserRegister, token: str = Query(...), db: Session = Depends(get_db)):
     """Admin-only endpoint to create new users"""
