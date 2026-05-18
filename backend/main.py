@@ -62,7 +62,7 @@ def root():
         "message": "CAMPEON CRM API is running",
         "docs": "/docs",
         "health": "/health",
-        "version": "1.0.0"
+        "version": "1.0.1"
     }
 
 
