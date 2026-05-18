@@ -558,7 +558,7 @@ export default function AdminPanel() {
 
                 {/* Header Section */}
                 <div className="mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-2">⚙️ Configuration Center</h1>
+                    <h1 className="text-4xl font-bold text-white mb-2">⚙️ Center</h1>
                     <p className="text-slate-400">Manage pricing tables and currency configurations</p>
                 </div>
 
